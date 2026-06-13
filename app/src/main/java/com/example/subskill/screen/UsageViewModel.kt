@@ -151,12 +151,22 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
             val event = UsageEvents.Event()
             val launchCounts = mutableMapOf<String, Int>()
             val lastUsedMap = mutableMapOf<String, Long>()
+
+            val lastForegroundTimeMap = mutableMapOf<String, Long>()
+            val SESSION_GAP_MS = 30_000L // 30秒以内の再フォアグラウンドは同一起動とみなす
+
             while (usageEvents.hasNextEvent()) {
                 usageEvents.getNextEvent(event)
-                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    launchCounts[event.packageName] = (launchCounts[event.packageName] ?: 0) + 1
-                    if ((lastUsedMap[event.packageName] ?: 0L) < event.timeStamp) {
-                        lastUsedMap[event.packageName] = event.timeStamp
+                when (event.eventType) {
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        val lastTime = lastForegroundTimeMap[event.packageName] ?: 0L
+                        if (event.timeStamp - lastTime > SESSION_GAP_MS) {
+                            launchCounts[event.packageName] = (launchCounts[event.packageName] ?: 0) + 1
+                        }
+                        lastForegroundTimeMap[event.packageName] = event.timeStamp
+                        if ((lastUsedMap[event.packageName] ?: 0L) < event.timeStamp) {
+                            lastUsedMap[event.packageName] = event.timeStamp
+                        }
                     }
                 }
             }

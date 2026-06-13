@@ -58,7 +58,6 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ヘッダー
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -73,7 +72,6 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
             )
         }
 
-        // タブ
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -130,7 +128,6 @@ fun PermissionScreen(onRequestPermission: () -> Unit) {
     }
 }
 
-// サブスク一覧（辞書に載っているものだけ）
 @Composable
 fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Unit) {
     val usageData by viewModel.usageData.collectAsState()
@@ -144,7 +141,6 @@ fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (Ap
     val totalYearly = totalMonthly * 12
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Total表示
         if (totalMonthly > 0) {
             Card(
                 modifier = Modifier
@@ -203,14 +199,13 @@ fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (Ap
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(subscriptions) { app ->
-                    AppCard(app = app, onClick = { onAppClick(app) })
+                    AppCard(app = app, onClick = { onAppClick(app) }, showLaunchCount = days != 90)
                 }
             }
         }
     }
 }
 
-// 全アプリ一覧（辞書に載っていないものだけ）
 @Composable
 fun AllAppsScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Unit) {
     val usageData by viewModel.usageData.collectAsState()
@@ -232,14 +227,14 @@ fun AllAppsScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageDat
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(allApps) { app ->
-                AppCard(app = app, onClick = { onAppClick(app) })
+                AppCard(app = app, onClick = { onAppClick(app) }, showLaunchCount = false)
             }
         }
     }
 }
 
 @Composable
-fun AppCard(app: AppUsageData, onClick: () -> Unit) {
+fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = true) {
     val context = LocalContext.current
     val icon: Drawable? = remember(app.packageName) {
         try {
@@ -316,7 +311,9 @@ fun AppCard(app: AppUsageData, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatChip(label = "使用", value = "${app.totalTimeMinutes}分")
-                    StatChip(label = "起動", value = "${app.launchCount}回")
+                    if (showLaunchCount) {
+                        StatChip(label = "起動", value = "${app.launchCount}回")
+                    }
                     StatChip(label = "最終", value = lastUsedText)
                 }
                 app.monthlyFee?.let {
@@ -358,7 +355,6 @@ fun CandidateScreen(viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Uni
     val totalYearly = totalMonthly * 12
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // 節約額表示
         if (totalMonthly > 0) {
             Card(
                 modifier = Modifier
