@@ -22,7 +22,8 @@ data class AppUsageData(
     val launchCount: Int,
     val lastUsed: Long,
     val monthlyFee: Int? = null,
-    val isCandidate: Boolean = false
+    val isCandidate: Boolean = false,
+    val isSubscription: Boolean = false
 )
 
 class UsageViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,6 +36,85 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
     private val dao = db.appSettingsDao()
+
+    // サブスク辞書（JP向け）
+    private val subscriptionDictionary = setOf(
+        // 動画
+        "com.netflix.mediaclient",
+        "com.google.android.youtube",
+        "com.amazon.avod.thirdpartyclient",
+        "com.disney.disneyplus",
+        "com.apple.atve.androidtv.appletv",
+        "tv.twitch.android.app",
+        "com.hulu.plus",
+        "tv.abema",
+        "jp.unext.mediaplayer",
+        "com.nttdocomo.android.danimeapp",
+        "jp.nicovideo.nicovideo",
+        "com.dmm.dmmtv",
+        "com.dazn.app",
+        "com.discovery.discoveryplus",
+        // 音楽
+        "com.spotify.music",
+        "com.google.android.apps.youtube.music",
+        "com.apple.android.music",
+        "com.amazon.mp3",
+        "com.audible.application",
+        "deezer.android.app",
+        "jp.radiko.Player",
+        // ショッピング
+        "com.amazon.mShop.android.shopping",
+        // クラウド
+        "com.google.android.apps.subscriptions.red",
+        "com.dropbox.android",
+        "com.microsoft.skydrive",
+        // AI
+        "com.openai.chatgpt",
+        "ai.perplexity.app.android",
+        "com.google.android.apps.bard",
+        // 生産性
+        "notion.id",
+        "com.evernote",
+        "com.canva.editor",
+        "com.todoist.android.Todoist",
+        "com.ticktick.task",
+        "com.adobe.lrmobile",
+        "com.adobe.reader",
+        // 学習
+        "com.duolingo",
+        "com.babbel.mobile.android.en",
+        "com.busuu.android.enc",
+        "com.quizlet.quizletandroid",
+        // 健康
+        "com.myfitnesspal.android",
+        "com.fitbit.FitbitMobile",
+        "com.nike.plusgps",
+        "com.zwift.android.prod",
+        "com.strava",
+        // マッチング
+        "com.tinder",
+        "com.bumble.app",
+        "jp.eureka.pairs",
+        "jp.co.tapple.app",
+        "jp.with.android",
+        // 漫画・書籍
+        "com.amazon.kindle",
+        "com.shueisha.jumpplus",
+        "jp.naver.linewebtoon",
+        "jp.co.nttdocomo.dmagazine",
+        "jp.co.rakuten.rakutenmagazine",
+        "jp.cmoa.app.smartphone",
+        "jp.bookwalker.kreader.android.epub",
+        "jp.kakao.piccoma",
+        // 生活
+        "com.cookpad.android.activities",
+        "jp.co.navitime.app",
+        "com.snow.android",
+        // フード
+        "com.ubercab",
+        // ゲーム
+        "com.gamepass"
+    )
 
     private fun hasUsagePermission(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
@@ -93,7 +173,6 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                 .mapValues { (_, list) -> list.sumOf { it.totalTimeInForeground } }
 
             val savedSettings = dao.getAll().associateBy { it.packageName }
-
             val pm = context.packageManager
 
             val result = totalTimeMap.map { (packageName, totalTime) ->
@@ -112,7 +191,8 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                     launchCount = launchCounts[packageName] ?: 0,
                     lastUsed = lastUsedMap[packageName] ?: 0L,
                     monthlyFee = saved?.monthlyFee,
-                    isCandidate = saved?.isCandidate ?: false
+                    isCandidate = saved?.isCandidate ?: false,
+                    isSubscription = subscriptionDictionary.contains(packageName)
                 )
             }
                 .sortedByDescending { it.totalTimeMinutes }
