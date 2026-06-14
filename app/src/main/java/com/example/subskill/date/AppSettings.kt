@@ -9,5 +9,6 @@ data class AppSettings(
     val packageName: String,
     val serviceName: String? = null,
     val monthlyFee: Int? = null,
-    val isCandidate: Boolean = false
+    val isCandidate: Boolean = false,
+    val isManualSubscription: Boolean = false
 )

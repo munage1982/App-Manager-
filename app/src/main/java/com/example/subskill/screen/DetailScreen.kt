@@ -27,7 +27,8 @@ fun DetailScreen(
     app: AppUsageData,
     onSave: (serviceName: String, monthlyFee: Int?) -> Unit,
     onCancel: () -> Unit,
-    onToggleCandidate: () -> Unit
+    onToggleCandidate: () -> Unit,
+    onToggleManualSubscription: () -> Unit
 ) {
     val context = LocalContext.current
     var serviceName by remember { mutableStateOf(app.appName) }
@@ -46,7 +47,6 @@ fun DetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // トップバー
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -74,7 +74,6 @@ fun DetailScreen(
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // アプリ情報ヘッダー
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -121,7 +120,6 @@ fun DetailScreen(
 
             HorizontalDivider()
 
-            // 入力フィールド
             OutlinedTextField(
                 value = serviceName,
                 onValueChange = { serviceName = it },
@@ -144,7 +142,27 @@ fun DetailScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 解約候補ボタン
+            // 辞書未登録のアプリのみ手動サブスク登録ボタンを表示
+            if (!subscriptionDictionary(app.packageName)) {
+                Button(
+                    onClick = onToggleManualSubscription,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (app.isManualSubscription)
+                            MaterialTheme.colorScheme.secondary
+                        else
+                            MaterialTheme.colorScheme.tertiary
+                    )
+                ) {
+                    Text(
+                        text = if (app.isManualSubscription) "サブスク登録を解除" else "サブスクとして登録",
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+
             Button(
                 onClick = onToggleCandidate,
                 modifier = Modifier.fillMaxWidth(),
@@ -163,7 +181,6 @@ fun DetailScreen(
                 )
             }
 
-            // 保存・キャンセルボタン
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -188,4 +205,73 @@ fun DetailScreen(
             }
         }
     }
+}
+
+// 辞書チェック用のヘルパー関数
+private fun subscriptionDictionary(packageName: String): Boolean {
+    val dict = setOf(
+        "com.netflix.mediaclient",
+        "com.google.android.youtube",
+        "com.amazon.avod.thirdpartyclient",
+        "com.disney.disneyplus",
+        "com.apple.atve.androidtv.appletv",
+        "tv.twitch.android.app",
+        "com.hulu.plus",
+        "tv.abema",
+        "jp.unext.mediaplayer",
+        "com.nttdocomo.android.danimeapp",
+        "jp.nicovideo.nicovideo",
+        "com.dmm.dmmtv",
+        "com.dazn.app",
+        "com.discovery.discoveryplus",
+        "com.spotify.music",
+        "com.google.android.apps.youtube.music",
+        "com.apple.android.music",
+        "com.amazon.mp3",
+        "com.audible.application",
+        "deezer.android.app",
+        "jp.radiko.Player",
+        "com.amazon.mShop.android.shopping",
+        "com.google.android.apps.subscriptions.red",
+        "com.dropbox.android",
+        "com.microsoft.skydrive",
+        "com.openai.chatgpt",
+        "ai.perplexity.app.android",
+        "com.google.android.apps.bard",
+        "notion.id",
+        "com.evernote",
+        "com.canva.editor",
+        "com.todoist.android.Todoist",
+        "com.ticktick.task",
+        "com.adobe.lrmobile",
+        "com.adobe.reader",
+        "com.duolingo",
+        "com.babbel.mobile.android.en",
+        "com.busuu.android.enc",
+        "com.quizlet.quizletandroid",
+        "com.myfitnesspal.android",
+        "com.fitbit.FitbitMobile",
+        "com.nike.plusgps",
+        "com.zwift.android.prod",
+        "com.strava",
+        "com.tinder",
+        "com.bumble.app",
+        "jp.eureka.pairs",
+        "jp.co.tapple.app",
+        "jp.with.android",
+        "com.amazon.kindle",
+        "com.shueisha.jumpplus",
+        "jp.naver.linewebtoon",
+        "jp.co.nttdocomo.dmagazine",
+        "jp.co.rakuten.rakutenmagazine",
+        "jp.cmoa.app.smartphone",
+        "jp.bookwalker.kreader.android.epub",
+        "jp.kakao.piccoma",
+        "com.cookpad.android.activities",
+        "jp.co.navitime.app",
+        "com.snow.android",
+        "com.ubercab",
+        "com.gamepass"
+    )
+    return dict.contains(packageName)
 }

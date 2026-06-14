@@ -48,6 +48,10 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
             onToggleCandidate = {
                 usageViewModel.toggleCandidate(selectedApp!!.packageName)
                 selectedApp = null
+            },
+            onToggleManualSubscription = {
+                usageViewModel.toggleManualSubscription(selectedApp!!.packageName)
+                selectedApp = null
             }
         )
         return
@@ -310,7 +314,14 @@ fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = t
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatChip(label = "使用", value = "${app.totalTimeMinutes}分")
+                    StatChip(
+                        label = "使用",
+                        value = if (app.totalTimeMinutes >= 60) {
+                            "${app.totalTimeMinutes / 60}時間${app.totalTimeMinutes % 60}分"
+                        } else {
+                            "${app.totalTimeMinutes}分"
+                        }
+                    )
                     if (showLaunchCount) {
                         StatChip(label = "起動", value = "${app.launchCount}回")
                     }

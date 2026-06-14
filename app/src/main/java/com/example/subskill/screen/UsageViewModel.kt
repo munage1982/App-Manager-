@@ -23,7 +23,8 @@ data class AppUsageData(
     val lastUsed: Long,
     val monthlyFee: Int? = null,
     val isCandidate: Boolean = false,
-    val isSubscription: Boolean = false
+    val isSubscription: Boolean = false,
+    val isManualSubscription: Boolean = false
 )
 
 class UsageViewModel(application: Application) : AndroidViewModel(application) {
@@ -37,9 +38,7 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     private val dao = db.appSettingsDao()
 
-    // サブスク辞書（JP向け）
     private val subscriptionDictionary = setOf(
-        // 動画
         "com.netflix.mediaclient",
         "com.google.android.youtube",
         "com.amazon.avod.thirdpartyclient",
@@ -54,7 +53,6 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         "com.dmm.dmmtv",
         "com.dazn.app",
         "com.discovery.discoveryplus",
-        // 音楽
         "com.spotify.music",
         "com.google.android.apps.youtube.music",
         "com.apple.android.music",
@@ -62,17 +60,13 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         "com.audible.application",
         "deezer.android.app",
         "jp.radiko.Player",
-        // ショッピング
         "com.amazon.mShop.android.shopping",
-        // クラウド
         "com.google.android.apps.subscriptions.red",
         "com.dropbox.android",
         "com.microsoft.skydrive",
-        // AI
         "com.openai.chatgpt",
         "ai.perplexity.app.android",
         "com.google.android.apps.bard",
-        // 生産性
         "notion.id",
         "com.evernote",
         "com.canva.editor",
@@ -80,24 +74,20 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         "com.ticktick.task",
         "com.adobe.lrmobile",
         "com.adobe.reader",
-        // 学習
         "com.duolingo",
         "com.babbel.mobile.android.en",
         "com.busuu.android.enc",
         "com.quizlet.quizletandroid",
-        // 健康
         "com.myfitnesspal.android",
         "com.fitbit.FitbitMobile",
         "com.nike.plusgps",
         "com.zwift.android.prod",
         "com.strava",
-        // マッチング
         "com.tinder",
         "com.bumble.app",
         "jp.eureka.pairs",
         "jp.co.tapple.app",
         "jp.with.android",
-        // 漫画・書籍
         "com.amazon.kindle",
         "com.shueisha.jumpplus",
         "jp.naver.linewebtoon",
@@ -106,13 +96,10 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         "jp.cmoa.app.smartphone",
         "jp.bookwalker.kreader.android.epub",
         "jp.kakao.piccoma",
-        // 生活
         "com.cookpad.android.activities",
         "jp.co.navitime.app",
         "com.snow.android",
-        // フード
         "com.ubercab",
-        // ゲーム
         "com.gamepass"
     )
 
@@ -151,9 +138,8 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
             val event = UsageEvents.Event()
             val launchCounts = mutableMapOf<String, Int>()
             val lastUsedMap = mutableMapOf<String, Long>()
-
             val lastForegroundTimeMap = mutableMapOf<String, Long>()
-            val SESSION_GAP_MS = 30_000L // 30秒以内の再フォアグラウンドは同一起動とみなす
+            val SESSION_GAP_MS = 30_000L
 
             while (usageEvents.hasNextEvent()) {
                 usageEvents.getNextEvent(event)
@@ -203,6 +189,8 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                     monthlyFee = saved?.monthlyFee,
                     isCandidate = saved?.isCandidate ?: false,
                     isSubscription = subscriptionDictionary.contains(packageName)
+                            || (saved?.isManualSubscription ?: false),
+                    isManualSubscription = saved?.isManualSubscription ?: false
                 )
             }
                 .sortedByDescending { it.totalTimeMinutes }
@@ -240,6 +228,27 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
             _usageData.value = _usageData.value.map { app ->
                 if (app.packageName == packageName) {
                     app.copy(isCandidate = newIsCandidate)
+                } else app
+            }
+        }
+    }
+
+    fun toggleManualSubscription(packageName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = _usageData.value.find { it.packageName == packageName } ?: return@launch
+            val newValue = !current.isManualSubscription
+            val existing = dao.getAll().find { it.packageName == packageName }
+            if (existing != null) {
+                dao.update(existing.copy(isManualSubscription = newValue))
+            } else {
+                dao.insert(AppSettings(packageName = packageName, isManualSubscription = newValue))
+            }
+            _usageData.value = _usageData.value.map { app ->
+                if (app.packageName == packageName) {
+                    app.copy(
+                        isManualSubscription = newValue,
+                        isSubscription = subscriptionDictionary.contains(packageName) || newValue
+                    )
                 } else app
             }
         }
