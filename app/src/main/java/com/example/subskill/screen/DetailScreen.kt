@@ -25,7 +25,8 @@ import androidx.core.graphics.drawable.toBitmap
 @Composable
 fun DetailScreen(
     app: AppUsageData,
-    onSave: (serviceName: String, monthlyFee: Int?) -> Unit,
+    currencySymbol: String,
+    onSave: (serviceName: String, monthlyFee: Double?) -> Unit,
     onCancel: () -> Unit,
     onToggleCandidate: () -> Unit,
     onToggleManualSubscription: () -> Unit
@@ -62,7 +63,7 @@ fun DetailScreen(
             }
             Text(
                 text = "詳細・編集",
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -105,7 +106,7 @@ fun DetailScreen(
                 Column {
                     Text(
                         text = app.appName,
-                        fontSize = 17.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -132,17 +133,16 @@ fun DetailScreen(
             OutlinedTextField(
                 value = monthlyFeeText,
                 onValueChange = { monthlyFeeText = it },
-                label = { Text("月額（円）") },
+                label = { Text("月額") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 singleLine = true,
-                prefix = { Text("¥") }
+                prefix = { Text(currencySymbol) }
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // 辞書未登録のアプリのみ手動サブスク登録ボタンを表示
             if (!subscriptionDictionary(app.packageName)) {
                 Button(
                     onClick = onToggleManualSubscription,
@@ -158,7 +158,7 @@ fun DetailScreen(
                     Text(
                         text = if (app.isManualSubscription) "サブスク登録を解除" else "サブスクとして登録",
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }
@@ -177,7 +177,7 @@ fun DetailScreen(
                 Text(
                     text = if (app.isCandidate) "解約候補から外す" else "解約候補に追加",
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
 
@@ -194,7 +194,7 @@ fun DetailScreen(
                 }
                 Button(
                     onClick = {
-                        val fee = monthlyFeeText.toIntOrNull()
+                        val fee = monthlyFeeText.toDoubleOrNull()
                         onSave(serviceName, fee)
                     },
                     modifier = Modifier.weight(1f),
@@ -207,7 +207,6 @@ fun DetailScreen(
     }
 }
 
-// 辞書チェック用のヘルパー関数
 private fun subscriptionDictionary(packageName: String): Boolean {
     val dict = setOf(
         "com.netflix.mediaclient",

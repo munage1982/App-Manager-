@@ -8,7 +8,7 @@ data class AppSettings(
     @PrimaryKey
     val packageName: String,
     val serviceName: String? = null,
-    val monthlyFee: Int? = null,
+    val monthlyFee: Double? = null,
     val isCandidate: Boolean = false,
     val isManualSubscription: Boolean = false
 )

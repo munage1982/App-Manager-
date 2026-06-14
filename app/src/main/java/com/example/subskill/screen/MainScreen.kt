@@ -27,11 +27,13 @@ import java.util.concurrent.TimeUnit
 
 @Composable
 fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
-    val tabs = listOf("サブスク90日", "サブスク30日", "全アプリ", "解約候補")
+    val tabs = listOf("30日", "90日", "全アプリ", "解約候補")
     var selectedTab by remember { mutableIntStateOf(0) }
     val hasPermission by usageViewModel.hasPermission.collectAsState()
     val context = LocalContext.current
     var selectedApp by remember { mutableStateOf<AppUsageData?>(null) }
+    var currencySymbol by remember { mutableStateOf("¥") }
+    var showCurrencyMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         usageViewModel.checkPermission()
@@ -40,6 +42,7 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
     if (selectedApp != null) {
         DetailScreen(
             app = selectedApp!!,
+            currencySymbol = currencySymbol,
             onSave = { serviceName, monthlyFee ->
                 usageViewModel.updateAppSettings(selectedApp!!.packageName, serviceName, monthlyFee)
                 selectedApp = null
@@ -69,18 +72,41 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "subs-killer",
+                text = "サブスキラー",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.align(Alignment.CenterStart)
             )
+            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                OutlinedButton(
+                    onClick = { showCurrencyMenu = true },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(currencySymbol, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+                DropdownMenu(
+                    expanded = showCurrencyMenu,
+                    onDismissRequest = { showCurrencyMenu = false }
+                ) {
+                    listOf("¥", "$", "€").forEach { symbol ->
+                        DropdownMenuItem(
+                            text = { Text(symbol, fontSize = 16.sp) },
+                            onClick = {
+                                currencySymbol = symbol
+                                showCurrencyMenu = false
+                            }
+                        )
+                    }
+                }
+            }
         }
 
-        ScrollableTabRow(
+        TabRow(
             selectedTabIndex = selectedTab,
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.primary,
-            edgePadding = 0.dp
+            contentColor = MaterialTheme.colorScheme.primary
         ) {
             tabs.forEachIndexed { index, title ->
                 Tab(
@@ -104,10 +130,10 @@ fun MainScreen(usageViewModel: UsageViewModel = viewModel()) {
             }
         } else {
             when (selectedTab) {
-                0 -> SubscriptionListScreen(days = 90, viewModel = usageViewModel, onAppClick = { selectedApp = it })
-                1 -> SubscriptionListScreen(days = 30, viewModel = usageViewModel, onAppClick = { selectedApp = it })
-                2 -> AllAppsScreen(days = 90, viewModel = usageViewModel, onAppClick = { selectedApp = it })
-                3 -> CandidateScreen(viewModel = usageViewModel, onAppClick = { selectedApp = it })
+                0 -> SubscriptionListScreen(days = 30, viewModel = usageViewModel, onAppClick = { selectedApp = it }, currencySymbol = currencySymbol, showLaunchCount = true)
+                1 -> SubscriptionListScreen(days = 90, viewModel = usageViewModel, onAppClick = { selectedApp = it }, currencySymbol = currencySymbol, showLaunchCount = false)
+                2 -> AllAppsScreen(days = 30, viewModel = usageViewModel, onAppClick = { selectedApp = it }, currencySymbol = currencySymbol)
+                3 -> CandidateScreen(viewModel = usageViewModel, onAppClick = { selectedApp = it }, currencySymbol = currencySymbol)
             }
         }
     }
@@ -132,8 +158,22 @@ fun PermissionScreen(onRequestPermission: () -> Unit) {
     }
 }
 
+fun formatFee(amount: Double): String {
+    return if (amount == kotlin.math.floor(amount)) {
+        "%,.0f".format(amount)
+    } else {
+        "%,.2f".format(amount)
+    }
+}
+
 @Composable
-fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Unit) {
+fun SubscriptionListScreen(
+    days: Int,
+    viewModel: UsageViewModel,
+    onAppClick: (AppUsageData) -> Unit,
+    currencySymbol: String,
+    showLaunchCount: Boolean
+) {
     val usageData by viewModel.usageData.collectAsState()
 
     LaunchedEffect(days) {
@@ -145,49 +185,47 @@ fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (Ap
     val totalYearly = totalMonthly * 12
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (totalMonthly > 0) {
-            Card(
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "月額合計",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "¥${"%,d".format(totalMonthly)}",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "年額合計",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "¥${"%,d".format(totalYearly)}",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+                Column {
+                    Text(
+                        text = "月額合計",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "$currencySymbol${formatFee(totalMonthly)}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "年額合計",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "$currencySymbol${formatFee(totalYearly)}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 }
             }
         }
@@ -203,7 +241,12 @@ fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (Ap
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(subscriptions) { app ->
-                    AppCard(app = app, onClick = { onAppClick(app) }, showLaunchCount = days != 90)
+                    AppCard(
+                        app = app,
+                        onClick = { onAppClick(app) },
+                        showLaunchCount = showLaunchCount,
+                        currencySymbol = currencySymbol
+                    )
                 }
             }
         }
@@ -211,7 +254,12 @@ fun SubscriptionListScreen(days: Int, viewModel: UsageViewModel, onAppClick: (Ap
 }
 
 @Composable
-fun AllAppsScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Unit) {
+fun AllAppsScreen(
+    days: Int,
+    viewModel: UsageViewModel,
+    onAppClick: (AppUsageData) -> Unit,
+    currencySymbol: String
+) {
     val usageData by viewModel.usageData.collectAsState()
 
     LaunchedEffect(days) {
@@ -231,14 +279,24 @@ fun AllAppsScreen(days: Int, viewModel: UsageViewModel, onAppClick: (AppUsageDat
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(allApps) { app ->
-                AppCard(app = app, onClick = { onAppClick(app) }, showLaunchCount = false)
+                AppCard(
+                    app = app,
+                    onClick = { onAppClick(app) },
+                    showLaunchCount = false,
+                    currencySymbol = currencySymbol
+                )
             }
         }
     }
 }
 
 @Composable
-fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = true) {
+fun AppCard(
+    app: AppUsageData,
+    onClick: () -> Unit,
+    showLaunchCount: Boolean = true,
+    currencySymbol: String = "¥"
+) {
     val context = LocalContext.current
     val icon: Drawable? = remember(app.packageName) {
         try {
@@ -259,6 +317,12 @@ fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = t
         }
     }
 
+    val usageText = if (app.totalTimeMinutes >= 60) {
+        "${app.totalTimeMinutes / 60}時間${app.totalTimeMinutes % 60}分"
+    } else {
+        "${app.totalTimeMinutes}分"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,70 +334,77 @@ fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = t
             else
                 MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
                 Image(
-                    bitmap = icon.toBitmap(width = 48, height = 48).asImageBitmap(),
+                    bitmap = icon.toBitmap(width = 56, height = 56).asImageBitmap(),
                     contentDescription = app.appName,
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = app.appName.take(1),
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.appName,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
+                    fontSize = 17.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatChip(
-                        label = "使用",
-                        value = if (app.totalTimeMinutes >= 60) {
-                            "${app.totalTimeMinutes / 60}時間${app.totalTimeMinutes % 60}分"
-                        } else {
-                            "${app.totalTimeMinutes}分"
-                        }
-                    )
-                    if (showLaunchCount) {
-                        StatChip(label = "起動", value = "${app.launchCount}回")
-                    }
-                    StatChip(label = "最終", value = lastUsedText)
-                }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = usageText,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 app.monthlyFee?.let {
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "¥${"%,d".format(it)} / 月",
-                        fontSize = 13.sp,
+                        text = "$currencySymbol${formatFee(it)}/月",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = lastUsedText,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (showLaunchCount) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "${app.launchCount}回起動",
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -342,73 +413,58 @@ fun AppCard(app: AppUsageData, onClick: () -> Unit, showLaunchCount: Boolean = t
 }
 
 @Composable
-fun StatChip(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-fun CandidateScreen(viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Unit) {
+fun CandidateScreen(
+    viewModel: UsageViewModel,
+    onAppClick: (AppUsageData) -> Unit,
+    currencySymbol: String
+) {
     val usageData by viewModel.usageData.collectAsState()
     val candidates = usageData.filter { it.isCandidate }
     val totalMonthly = candidates.mapNotNull { it.monthlyFee }.sum()
     val totalYearly = totalMonthly * 12
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (totalMonthly > 0) {
-            Card(
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "解約で節約できる月額",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            text = "¥${"%,d".format(totalMonthly)}",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "年額換算",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Text(
-                            text = "¥${"%,d".format(totalYearly)}",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
+                Column {
+                    Text(
+                        text = "解約で節約できる月額",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        text = "$currencySymbol${formatFee(totalMonthly)}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "年額換算",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        text = "$currencySymbol${formatFee(totalYearly)}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 }
             }
         }
@@ -434,7 +490,12 @@ fun CandidateScreen(viewModel: UsageViewModel, onAppClick: (AppUsageData) -> Uni
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(candidates) { app ->
-                    AppCard(app = app, onClick = { onAppClick(app) })
+                    AppCard(
+                        app = app,
+                        onClick = { onAppClick(app) },
+                        showLaunchCount = true,
+                        currencySymbol = currencySymbol
+                    )
                 }
             }
         }

@@ -21,7 +21,7 @@ data class AppUsageData(
     val totalTimeMinutes: Long,
     val launchCount: Int,
     val lastUsed: Long,
-    val monthlyFee: Int? = null,
+    val monthlyFee: Double? = null,
     val isCandidate: Boolean = false,
     val isSubscription: Boolean = false,
     val isManualSubscription: Boolean = false
@@ -199,7 +199,7 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateAppSettings(packageName: String, serviceName: String, monthlyFee: Int?) {
+    fun updateAppSettings(packageName: String, serviceName: String, monthlyFee: Double?) {
         viewModelScope.launch(Dispatchers.IO) {
             val existing = dao.getAll().find { it.packageName == packageName }
             if (existing != null) {
