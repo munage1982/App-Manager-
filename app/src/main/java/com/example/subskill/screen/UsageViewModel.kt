@@ -134,10 +134,10 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
             calendar.add(Calendar.DAY_OF_YEAR, -days)
             val startTime = calendar.timeInMillis
 
+            // 起動回数のカウント
             val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
             val event = UsageEvents.Event()
             val launchCounts = mutableMapOf<String, Int>()
-            val lastUsedMap = mutableMapOf<String, Long>()
             val lastForegroundTimeMap = mutableMapOf<String, Long>()
             val SESSION_GAP_MS = 30_000L
 
@@ -150,13 +150,11 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                             launchCounts[event.packageName] = (launchCounts[event.packageName] ?: 0) + 1
                         }
                         lastForegroundTimeMap[event.packageName] = event.timeStamp
-                        if ((lastUsedMap[event.packageName] ?: 0L) < event.timeStamp) {
-                            lastUsedMap[event.packageName] = event.timeStamp
-                        }
                     }
                 }
             }
 
+            // 使用時間・最終利用日はqueryUsageStatsから取得
             val stats = usageStatsManager.queryUsageStats(
                 UsageStatsManager.INTERVAL_BEST,
                 startTime,
@@ -167,6 +165,11 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                 .filter { it.totalTimeInForeground > 0 }
                 .groupBy { it.packageName }
                 .mapValues { (_, list) -> list.sumOf { it.totalTimeInForeground } }
+
+            val lastUsedFromStats = stats
+                .filter { it.totalTimeInForeground > 0 }
+                .groupBy { it.packageName }
+                .mapValues { (_, list) -> list.maxOf { it.lastTimeUsed } }
 
             val savedSettings = dao.getAll().associateBy { it.packageName }
             val pm = context.packageManager
@@ -185,7 +188,7 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
                     appName = saved?.serviceName ?: defaultName,
                     totalTimeMinutes = totalTime / 1000 / 60,
                     launchCount = launchCounts[packageName] ?: 0,
-                    lastUsed = lastUsedMap[packageName] ?: 0L,
+                    lastUsed = lastUsedFromStats[packageName] ?: 0L,
                     monthlyFee = saved?.monthlyFee,
                     isCandidate = saved?.isCandidate ?: false,
                     isSubscription = subscriptionDictionary.contains(packageName)
